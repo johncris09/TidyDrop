@@ -11,8 +11,11 @@
 #                 Default: "_Sorted".
 #   --keep-empty  Do NOT delete leftover empty folders (they are removed
 #                 by default once sorting is done).
+#   --yes, -y     Skip the "type YES" confirmation (for scripts/automation).
 #
 # Behavior / safety:
+#   - A real run asks you to type YES (showing the target path) before it
+#     changes anything. Dry runs and --yes skip this prompt.
 #   - Only top-level files are moved (existing subfolders are left untouched).
 #   - Uses `mv -n` so an existing file is never overwritten.
 #   - Screenshots (files named "Screenshot *.png") get their own subfolder.
@@ -29,14 +32,16 @@ TARGET="."
 DRYRUN=0
 CONTAINER="_Sorted"
 KEEPEMPTY=0
+ASSUMEYES=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)    DRYRUN=1; shift ;;
     --keep-empty) KEEPEMPTY=1; shift ;;
+    --yes|-y)     ASSUMEYES=1; shift ;;
     --into)       CONTAINER="${2:?--into needs a name}"; shift 2 ;;
     -h|--help)
-      sed -n '2,24p' "$0"; exit 0 ;;
+      sed -n '2,26p' "$0"; exit 0 ;;
     -*)
       echo "Unknown option: $1" >&2; exit 1 ;;
     *)
@@ -46,6 +51,23 @@ done
 
 cd "$TARGET" || { echo "Cannot enter: $TARGET" >&2; exit 1; }
 SELF="$(basename "$0")"
+
+# ---- confirmation (real runs only) ------------------------------------------
+if [[ "$DRYRUN" -eq 0 && "$ASSUMEYES" -eq 0 ]]; then
+  echo "About to organize this folder:"
+  echo "    $(pwd)"
+  echo "Files will be moved into ./$CONTAINER/ and empty folders removed."
+  printf "Type YES (in capitals) to proceed: "
+  reply=""
+  if ! { read -r reply < /dev/tty; } 2>/dev/null; then
+    read -r reply || reply=""
+  fi
+  if [[ "$reply" != "YES" ]]; then
+    echo "Aborted. Nothing was changed."
+    exit 0
+  fi
+  echo
+fi
 
 # ---- map an extension to a category folder ----------------------------------
 category_for() {

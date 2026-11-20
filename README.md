@@ -6,6 +6,7 @@ Works on **Windows** (double-click or PowerShell) and anywhere with **Bash** (Gi
 
 ## Features
 
+- **Asks before it acts** — a real run shows the target folder and makes you type `YES` before anything moves. Dry runs don't prompt; add `-Yes` / `--yes` to skip it for automation.
 - **Safe by design** — only top-level files are moved; your existing subfolders are never touched.
 - **Never overwrites** — name conflicts are skipped and reported, not clobbered.
 - **Dry-run mode** — preview exactly what will move/remove before committing.
@@ -37,7 +38,10 @@ The `.bat` always organizes the folder it lives in, and uses `-ExecutionPolicy B
 .\organize.ps1 -Target "E:\Stuff"
 .\organize.ps1 -Into "Organized"         # custom container folder name
 .\organize.ps1 -KeepEmpty                # don't delete leftover empty folders
+.\organize.ps1 -Yes                      # skip the "type YES" confirmation
 ```
+
+> A real run shows the target path and waits for you to type `YES` (capitals) before moving anything. `-DryRun` and `-Yes` skip the prompt.
 
 ### Bash (Git Bash / Linux / macOS)
 
@@ -48,6 +52,7 @@ bash organize.sh "/e/Stuff" --dry-run
 bash organize.sh "/e/Stuff"
 bash organize.sh --into Organized
 bash organize.sh --keep-empty            # don't delete leftover empty folders
+bash organize.sh --yes                   # skip the "type YES" confirmation
 ```
 
 ## Which files do I need? (organizing another drive)

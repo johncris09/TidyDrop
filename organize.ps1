@@ -7,8 +7,11 @@
         .\organize.ps1 -Target "C:\path"     # organize another folder
         .\organize.ps1 -Into "Organized"     # custom container name
         .\organize.ps1 -KeepEmpty            # keep leftover empty folders
+        .\organize.ps1 -Yes                  # skip the "type YES" confirmation
 
     Safety:
+        - A real run asks you to type YES (showing the target path) before it
+          changes anything. -DryRun and -Yes skip this prompt.
         - Only top-level files are moved; existing subfolders are untouched.
         - Never overwrites an existing file (conflicts are skipped + reported).
         - Screenshots ("Screenshot *.png") get their own subfolder.
@@ -23,7 +26,8 @@ param(
     [string]$Target = ".",
     [switch]$DryRun,
     [string]$Into = "_Sorted",
-    [switch]$KeepEmpty
+    [switch]$KeepEmpty,
+    [switch]$Yes
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,6 +38,19 @@ catch { Write-Host "Cannot find folder: $Target" -ForegroundColor Red; exit 1 }
 
 $skipNames = @("desktop.ini","Thumbs.db","organize.ps1","organize.sh",
                "TidyDrop.bat")
+
+# ---- confirmation (real runs only) ------------------------------------------
+if (-not $DryRun -and -not $Yes) {
+    Write-Host "About to organize this folder:" -ForegroundColor Cyan
+    Write-Host "    $Target"
+    Write-Host "Files will be moved into .\$Into\ and empty folders removed."
+    $reply = Read-Host "Type YES (in capitals) to proceed"
+    if ($reply -cne "YES") {
+        Write-Host "Aborted. Nothing was changed." -ForegroundColor Yellow
+        exit 0
+    }
+    Write-Host ""
+}
 
 function Get-Category($file) {
     if ($file.Name -like "Screenshot *" -and $file.Extension -ieq ".png") {
