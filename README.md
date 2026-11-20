@@ -50,6 +50,32 @@ bash organize.sh --into Organized
 bash organize.sh --keep-empty            # don't delete leftover empty folders
 ```
 
+## Which files do I need? (organizing another drive)
+
+You do **not** need all three files — they're three ways to run the same tool.
+
+| File | What it is | Needs a companion? |
+|------|-----------|--------------------|
+| `organize.ps1` | The actual Windows program | **Standalone** |
+| `TidyDrop.bat` | A double-click launcher that runs `organize.ps1` | **Needs `organize.ps1` beside it** |
+| `organize.sh`  | Same program, for Git Bash / Linux / macOS | **Standalone** |
+
+To organize another drive (e.g. `E:\`), pick one approach:
+
+- **Just type commands** → you only need **`organize.ps1`**. Keep it anywhere and aim it at any path; no copying into the drive required:
+  ```powershell
+  .\organize.ps1 -Target "E:\SomeFolder" -DryRun
+  .\organize.ps1 -Target "E:\SomeFolder"
+  ```
+- **Prefer double-clicking** → copy **two** files together (`TidyDrop.bat` + `organize.ps1`) into the folder you want to organize, then double-click the `.bat`. The `.bat` won't work without `organize.ps1` next to it.
+- **Using Git Bash** → you only need **`organize.sh`**:
+  ```bash
+  bash organize.sh "/e/SomeFolder" --dry-run
+  bash organize.sh "/e/SomeFolder"
+  ```
+
+**Bottom line:** never all three at once. On Windows, `organize.ps1` is the only always-required file; `organize.sh` is only for Bash users.
+
 ## ⚠️ Caution about drive roots
 
 Organizing a **data drive** like `E:\` is fine. **Do not** run it on the root of your system drive `C:\` — it holds Windows system files. Organize specific folders instead (e.g. `C:\Users\You\Downloads`). Always run a `--dry-run` / `-DryRun` first on any new location.
