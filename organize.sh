@@ -3,12 +3,14 @@
 # organize.sh — sort loose files in a folder into category subfolders by type.
 #
 # Usage:
-#   ./organize.sh [TARGET_DIR] [--dry-run] [--into DIRNAME]
+#   ./organize.sh [TARGET_DIR] [--dry-run] [--into DIRNAME] [--keep-empty]
 #
-#   TARGET_DIR   Folder to organize. Default: current directory.
-#   --dry-run    Show what WOULD move, without touching anything.
-#   --into NAME  Name of the container folder for sorted files.
-#                Default: "_Sorted".
+#   TARGET_DIR    Folder to organize. Default: current directory.
+#   --dry-run     Show what WOULD move/remove, without touching anything.
+#   --into NAME   Name of the container folder for sorted files.
+#                 Default: "_Sorted".
+#   --keep-empty  Do NOT delete leftover empty folders (they are removed
+#                 by default once sorting is done).
 #
 # Behavior / safety:
 #   - Only top-level files are moved (existing subfolders are left untouched).
@@ -16,6 +18,9 @@
 #   - Screenshots (files named "Screenshot *.png") get their own subfolder.
 #   - System files (desktop.ini, Thumbs.db, the script itself) are skipped.
 #   - Extensionless files are left where they are.
+#   - After sorting, empty folders are removed (deepest-first, so nested
+#     empties collapse too). Hidden folders (.git, .claude ...) are never
+#     touched. A folder holding only desktop.ini/Thumbs.db counts as empty.
 #
 set -euo pipefail
 
@@ -23,13 +28,15 @@ set -euo pipefail
 TARGET="."
 DRYRUN=0
 CONTAINER="_Sorted"
+KEEPEMPTY=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dry-run) DRYRUN=1; shift ;;
-    --into)    CONTAINER="${2:?--into needs a name}"; shift 2 ;;
+    --dry-run)    DRYRUN=1; shift ;;
+    --keep-empty) KEEPEMPTY=1; shift ;;
+    --into)       CONTAINER="${2:?--into needs a name}"; shift 2 ;;
     -h|--help)
-      sed -n '2,20p' "$0"; exit 0 ;;
+      sed -n '2,24p' "$0"; exit 0 ;;
     -*)
       echo "Unknown option: $1" >&2; exit 1 ;;
     *)
@@ -89,6 +96,34 @@ while IFS= read -r -d '' path; do
   moved=$((moved + 1))
 done < <(find . -maxdepth 1 -type f -print0)
 
+# ---- remove empty folders ---------------------------------------------------
+emptied=0
+if [[ "$KEEPEMPTY" -eq 0 ]]; then
+  while IFS= read -r -d '' d; do
+    case "$d" in
+      ./"$CONTAINER"|./"$CONTAINER"/*) continue ;;   # never the sorted container
+      *"/."*) continue ;;                            # skip hidden folders (.git ...)
+    esac
+    # Empty apart from Windows cruft?
+    keep=0
+    shopt -s nullglob dotglob
+    for e in "$d"/*; do
+      b="${e##*/}"
+      [[ "$b" == "desktop.ini" || "$b" == "Thumbs.db" ]] && continue
+      keep=1; break
+    done
+    shopt -u nullglob dotglob
+    [[ $keep -eq 1 ]] && continue
+    if [[ "$DRYRUN" -eq 1 ]]; then
+      echo "  would remove empty folder: ${d#./}"
+    else
+      rm -f -- "$d/desktop.ini" "$d/Thumbs.db" 2>/dev/null || true
+      rmdir -- "$d" 2>/dev/null || true
+    fi
+    emptied=$((emptied + 1))
+  done < <(find . -mindepth 1 -depth -type d -print0)
+fi
+
 # ---- summary ----------------------------------------------------------------
 echo
 if [[ "$DRYRUN" -eq 1 ]]; then
@@ -99,3 +134,10 @@ fi
 for cat in $(printf '%s\n' "${!counts[@]}" | sort); do
   printf '  %5d  %s\n' "${counts[$cat]}" "$cat"
 done
+if [[ "$KEEPEMPTY" -eq 0 && "$emptied" -gt 0 ]]; then
+  if [[ "$DRYRUN" -eq 1 ]]; then
+    echo "  (plus $emptied empty folder(s) would be removed)"
+  else
+    echo "Removed $emptied empty folder(s)."
+  fi
+fi

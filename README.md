@@ -8,8 +8,9 @@ Works on **Windows** (double-click or PowerShell) and anywhere with **Bash** (Gi
 
 - **Safe by design** — only top-level files are moved; your existing subfolders are never touched.
 - **Never overwrites** — name conflicts are skipped and reported, not clobbered.
-- **Dry-run mode** — preview exactly what will move before committing.
+- **Dry-run mode** — preview exactly what will move/remove before committing.
 - **Screenshots split out** — files named `Screenshot *.png` get their own subfolder.
+- **Removes empty folders** — after sorting, leftover empty folders are cleaned up (deepest-first, so nested empties collapse too). Hidden folders like `.git` are never touched; a folder holding only `desktop.ini`/`Thumbs.db` counts as empty. Opt out with `-KeepEmpty` / `--keep-empty`.
 - **Nothing is lost** — unknown file types go into an `Other/` folder.
 - **Runs on any folder or drive** (e.g. `E:\`), not just Downloads.
 
@@ -35,6 +36,7 @@ The `.bat` always organizes the folder it lives in, and uses `-ExecutionPolicy B
 .\organize.ps1 -Target "E:\Stuff" -DryRun
 .\organize.ps1 -Target "E:\Stuff"
 .\organize.ps1 -Into "Organized"         # custom container folder name
+.\organize.ps1 -KeepEmpty                # don't delete leftover empty folders
 ```
 
 ### Bash (Git Bash / Linux / macOS)
@@ -45,6 +47,7 @@ bash organize.sh                         # organize the current folder
 bash organize.sh "/e/Stuff" --dry-run
 bash organize.sh "/e/Stuff"
 bash organize.sh --into Organized
+bash organize.sh --keep-empty            # don't delete leftover empty folders
 ```
 
 ## ⚠️ Caution about drive roots

@@ -3,22 +3,27 @@
 
     Usage (PowerShell):
         .\organize.ps1                       # organize current folder
-        .\organize.ps1 -DryRun               # preview only, move nothing
+        .\organize.ps1 -DryRun               # preview only, change nothing
         .\organize.ps1 -Target "C:\path"     # organize another folder
         .\organize.ps1 -Into "Organized"     # custom container name
+        .\organize.ps1 -KeepEmpty            # keep leftover empty folders
 
     Safety:
         - Only top-level files are moved; existing subfolders are untouched.
         - Never overwrites an existing file (conflicts are skipped + reported).
         - Screenshots ("Screenshot *.png") get their own subfolder.
         - Skips system files, the scripts themselves, and extensionless files.
+        - After sorting, empty folders are removed (deepest-first). Hidden
+          folders (.git, .claude ...) are never touched; a folder holding
+          only desktop.ini/Thumbs.db counts as empty. Use -KeepEmpty to skip.
 #>
 
 [CmdletBinding()]
 param(
     [string]$Target = ".",
     [switch]$DryRun,
-    [string]$Into = "_Sorted"
+    [string]$Into = "_Sorted",
+    [switch]$KeepEmpty
 )
 
 $ErrorActionPreference = "Stop"
@@ -81,9 +86,33 @@ Get-ChildItem -LiteralPath $Target -File | ForEach-Object {
     $moved++
 }
 
+# ---- remove empty folders ---------------------------------------------------
+$emptied = 0
+if (-not $KeepEmpty) {
+    Get-ChildItem -LiteralPath $Target -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+        Sort-Object { $_.FullName.Length } -Descending |
+        ForEach-Object {
+            $dir = $_
+            if ($dir.FullName -match '\\\.') { return }   # skip hidden (.git, .claude ...)
+            if ($dir.FullName -like "*\$Into" -or $dir.FullName -like "*\$Into\*") { return }
+            $remaining = Get-ChildItem -LiteralPath $dir.FullName -Force |
+                Where-Object { $_.Name -notin @("desktop.ini","Thumbs.db") }
+            if (-not $remaining) {
+                if ($DryRun) {
+                    Write-Host "would remove empty folder: $($dir.FullName)"
+                } else {
+                    Get-ChildItem -LiteralPath $dir.FullName -Force -ErrorAction SilentlyContinue |
+                        Remove-Item -Force -ErrorAction SilentlyContinue
+                    Remove-Item -LiteralPath $dir.FullName -Force -ErrorAction SilentlyContinue
+                }
+                $emptied++
+            }
+        }
+}
+
 Write-Host ""
 if ($DryRun) {
-    Write-Host "DRY RUN - nothing was moved. $moved file(s) would be sorted:" -ForegroundColor Cyan
+    Write-Host "DRY RUN - nothing was changed. $moved file(s) would be sorted:" -ForegroundColor Cyan
 } else {
     Write-Host "Done. Sorted $moved file(s) into .\$Into\" -ForegroundColor Green
     if ($conflicts -gt 0) {
@@ -92,4 +121,11 @@ if ($DryRun) {
 }
 $counts.Keys | Sort-Object | ForEach-Object {
     "{0,5}  {1}" -f $counts[$_], $_ | Write-Host
+}
+if (-not $KeepEmpty -and $emptied -gt 0) {
+    if ($DryRun) {
+        Write-Host "  (plus $emptied empty folder(s) would be removed)"
+    } else {
+        Write-Host "Removed $emptied empty folder(s)." -ForegroundColor Green
+    }
 }
